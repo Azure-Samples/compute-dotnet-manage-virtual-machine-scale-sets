@@ -196,12 +196,12 @@ namespace ManageVirtualMachineScaleSet
                             .WithExistingResourceGroup(rgName)
                             .WithSku(VirtualMachineScaleSetSkuTypes.STANDARD_D3_V2)
                             .WithExistingPrimaryNetworkSubnet(network, "Front-end")
-                            .WithPrimaryInternetFacingLoadBalancer(loadBalancer1)
+                            .WithExistingPrimaryInternetFacingLoadBalancer(loadBalancer1)
                             .WithPrimaryInternetFacingLoadBalancerBackends(backendPoolName1, backendPoolName2)
                             .WithPrimaryInternetFacingLoadBalancerInboundNatPools(natPool50XXto22, natPool60XXto23)
                             .WithoutPrimaryInternalLoadBalancer()
                             .WithPopularLinuxImage(KnownLinuxVirtualMachineImage.UBUNTU_SERVER_16_04_LTS)
-                            .WithRootUserName(userName)
+                            .WithRootUsername(userName)
                             .WithSsh(sshKey)
                             .WithNewStorageAccount(storageAccountName1)
                             .WithNewStorageAccount(storageAccountName2)
@@ -271,7 +271,7 @@ namespace ManageVirtualMachineScaleSet
                     try
                     {
                         Console.WriteLine("Deleting Resource Group: " + rgName);
-                        azure.ResourceGroups.Delete(rgName);
+                        azure.ResourceGroups.DeleteByName(rgName);
                         Console.WriteLine("Deleted Resource Group: " + rgName);
                     }
                     catch (NullReferenceException npe)

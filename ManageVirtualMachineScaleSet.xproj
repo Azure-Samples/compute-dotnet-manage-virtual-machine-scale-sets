@@ -7,7 +7,7 @@
 
   <Import Project="$(VSToolsPath)\DotNet\Microsoft.DotNet.Props" Condition="'$(VSToolsPath)' != ''" />
   <PropertyGroup Label="Globals">
-    <ProjectGuid>67a9d898-b8c9-4f0e-b715-f1e387f46975</ProjectGuid>
+    <ProjectGuid>d0d166e0-47ab-4108-b732-d5a57846f495</ProjectGuid>
     <RootNamespace>ManageVirtualMachineScaleSet</RootNamespace>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)'=='' ">.\obj</BaseIntermediateOutputPath>
     <OutputPath Condition="'$(OutputPath)'=='' ">.\bin\</OutputPath>
