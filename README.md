@@ -6,14 +6,16 @@ author: selvasingh
 
 #Getting Started with Compute - Manage Virtual Machine Scale Set - in .Net #
 
-      Azure Compute sample for managing virtual machine scale sets -
-       - Create a virtual machine scale set behind an Internet facing load balancer
-       - Install Apache Web servers in virtual machines in the virtual machine scale set
-       - Stop a virtual machine scale set
-       - Start a virtual machine scale set
-       - Update a virtual machine scale set
-         - Double the no. of virtual machines
-       - Restart a virtual machine scale set
+          Azure Compute sample for managing virtual machine scale sets with un-managed disks -
+           - Create a virtual machine scale set behind an Internet facing load balancer
+           - Install Apache Web serversinvirtual machinesinthe virtual machine scale set
+           - List the network interfaces associated with the virtual machine scale set
+           - List scale set virtual machine instances and SSH collection string
+           - Stop a virtual machine scale set
+           - Start a virtual machine scale set
+           - Update a virtual machine scale set
+             - Double the no. of virtual machines
+           - Restart a virtual machine scale set
 
 
 ## Running this Sample ##
