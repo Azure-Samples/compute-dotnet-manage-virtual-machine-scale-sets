@@ -5,11 +5,12 @@ using Microsoft.Azure.Management.Compute.Fluent;
 using Microsoft.Azure.Management.Compute.Fluent.Models;
 using Microsoft.Azure.Management.Fluent;
 using Microsoft.Azure.Management.Network.Fluent.Models;
-using Microsoft.Azure.Management.Resource.Fluent;
-using Microsoft.Azure.Management.Resource.Fluent.Core;
+using Microsoft.Azure.Management.ResourceManager.Fluent;
+using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
 using Microsoft.Azure.Management.Samples.Common;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ManageVirtualMachineScaleSet
 {
@@ -77,7 +78,7 @@ namespace ManageVirtualMachineScaleSet
                 // Create a public IP address
                 Utilities.Log("Creating a public IP address...");
 
-                var publicIpAddress = azure.PublicIpAddresses.Define(publicIpName)
+                var publicIPAddress = azure.PublicIPAddresses.Define(publicIpName)
                         .WithRegion(region)
                         .WithExistingResourceGroup(rgName)
                         .WithLeafDomainLabel(publicIpName)
@@ -85,7 +86,7 @@ namespace ManageVirtualMachineScaleSet
 
                 Utilities.Log("Created a public IP address");
                 // Print the virtual network details
-                Utilities.PrintIpAddress(publicIpAddress);
+                Utilities.PrintIPAddress(publicIPAddress);
 
                 //=============================================================
                 // Create an Internet facing load balancer with
@@ -116,7 +117,7 @@ namespace ManageVirtualMachineScaleSet
                         .WithRegion(region)
                         .WithExistingResourceGroup(rgName)
                         .DefinePublicFrontend(frontendName)
-                            .WithExistingPublicIpAddress(publicIpAddress)
+                            .WithExistingPublicIPAddress(publicIPAddress)
                             .Attach()
                         // Add two backend one per rule
                         .DefineBackend(backendPoolName1)
@@ -234,8 +235,8 @@ namespace ManageVirtualMachineScaleSet
                     Utilities.Log(instance.Id);
                     var networkInterfaces = instance.ListNetworkInterfaces();
                     // Pick the first NIC
-                    var networkInterface = networkInterfaces[0];
-                    foreach (var ipConfig in networkInterface.IpConfigurations.Values)
+                    var networkInterface = networkInterfaces.ElementAt(0);
+                    foreach (var ipConfig in networkInterface.IPConfigurations.Values)
                     {
                         if (ipConfig.IsPrimary)
                         {
@@ -244,7 +245,7 @@ namespace ManageVirtualMachineScaleSet
                             {
                                 if (natRule.BackendPort == 22)
                                 {
-                                    Utilities.Log("SSH connection string: " + userName + "@" + publicIpAddress.Fqdn + ":" + natRule.FrontendPort);
+                                    Utilities.Log("SSH connection string: " + userName + "@" + publicIPAddress.Fqdn + ":" + natRule.FrontendPort);
                                     break;
                                 }
                             }
@@ -334,7 +335,7 @@ namespace ManageVirtualMachineScaleSet
 
                 var azure = Azure
                     .Configure()
-                    .WithLogLevel(HttpLoggingDelegatingHandler.Level.BASIC)
+                    .WithLogLevel(HttpLoggingDelegatingHandler.Level.Basic)
                     .Authenticate(credentials)
                     .WithDefaultSubscription();
 
