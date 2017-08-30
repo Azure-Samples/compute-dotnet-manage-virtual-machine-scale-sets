@@ -1,0 +1,4 @@
+C:\Sources\dotnet-samples\compute-dotnet-manage-virtual-machine-scale-sets\bin\Debug\net452\ManageVirtualMachineScaleSet.runtimeconfig.json
+C:\Sources\dotnet-samples\compute-dotnet-manage-virtual-machine-scale-sets\bin\Debug\net452\ManageVirtualMachineScaleSet.runtimeconfig.dev.json
+C:\Sources\dotnet-samples\compute-dotnet-manage-virtual-machine-scale-sets\obj\Debug\net452\ManageVirtualMachineScaleSet.csproj.ManageVirtualMachineScaleSet.exe.config
+C:\Sources\dotnet-samples\compute-dotnet-manage-virtual-machine-scale-sets\obj\Debug\net452\ManageVirtualMachineScaleSet.csproj.CoreCompileInputs.cache
