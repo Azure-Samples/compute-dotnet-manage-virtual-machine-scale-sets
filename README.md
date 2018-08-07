@@ -1,10 +1,10 @@
 ---
 services: Compute
-platforms: .Net
+platforms: dotnet
 author: selvasingh
 ---
 
-# Getting Started with Compute - Manage Virtual Machine Scale Set - in .Net #
+# Getting started on managing virtual machine scale sets in C# #
 
           Azure Compute sample for managing virtual machine scale sets with un-managed disks -
            - Create a virtual machine scale set behind an Internet facing load balancer
@@ -22,7 +22,7 @@ author: selvasingh
 
 To run this sample:
 
-Set the environment variable `AZURE_AUTH_LOCATION` with the full path for an auth file. See [how to create an auth file](https://github.com/Azure/azure-sdk-for-net/blob/Fluent/AUTH.md).
+Set the environment variable `AZURE_AUTH_LOCATION` with the full path for an auth file. See [how to create an auth file](https://github.com/Azure/azure-libraries-for-java/blob/master/AUTH.md).
 
     git clone https://github.com/Azure-Samples/compute-dotnet-manage-virtual-machine-scale-sets.git
 
