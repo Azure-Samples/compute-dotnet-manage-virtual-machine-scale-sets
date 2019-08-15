@@ -4,23 +4,23 @@ languages:
 - csharp
 products:
 - azure
-services: Compute
-platforms: dotnet
-author: yaohaizh
+extensions:
+- services: Compute
+- platforms: dotnet
 ---
 
 # Getting started on managing virtual machine scale sets in C# #
 
-          Azure Compute sample for managing virtual machine scale sets with un-managed disks -
-           - Create a virtual machine scale set behind an Internet facing load balancer
-           - Install Apache Web serversinvirtual machinesinthe virtual machine scale set
-           - List the network interfaces associated with the virtual machine scale set
-           - List scale set virtual machine instances and SSH collection string
-           - Stop a virtual machine scale set
-           - Start a virtual machine scale set
-           - Update a virtual machine scale set
-             - Double the no. of virtual machines
-           - Restart a virtual machine scale set
+ Azure Compute sample for managing virtual machine scale sets with un-managed disks -
+  - Create a virtual machine scale set behind an Internet facing load balancer
+  - Install Apache Web serversinvirtual machinesinthe virtual machine scale set
+  - List the network interfaces associated with the virtual machine scale set
+  - List scale set virtual machine instances and SSH collection string
+  - Stop a virtual machine scale set
+  - Start a virtual machine scale set
+  - Update a virtual machine scale set
+    - Double the no. of virtual machines
+  - Restart a virtual machine scale set
 
 
 ## Running this Sample ##
