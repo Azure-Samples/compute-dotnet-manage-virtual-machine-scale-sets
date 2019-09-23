@@ -7,6 +7,7 @@ products:
 extensions:
 - services: Compute
 - platforms: dotnet
+description: "Azure Compute sample for managing virtual machine scale sets with un-managed disks."
 ---
 
 # Getting started on managing virtual machine scale sets in C# #
