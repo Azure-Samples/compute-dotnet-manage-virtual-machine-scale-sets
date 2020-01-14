@@ -7,10 +7,9 @@ products:
 extensions:
 - services: Compute
 - platforms: dotnet
-description: "Azure Compute sample for managing virtual machine scale sets with un-managed disks."
 ---
 
-# Getting started on managing virtual machine scale sets in C#
+# Getting started on managing virtual machine scale sets in C# #
 
  Azure Compute sample for managing virtual machine scale sets with un-managed disks -
   - Create a virtual machine scale set behind an Internet facing load balancer
@@ -24,7 +23,7 @@ description: "Azure Compute sample for managing virtual machine scale sets with 
   - Restart a virtual machine scale set
 
 
-## Running this Sample
+## Running this Sample ##
 
 To run this sample:
 
@@ -38,7 +37,7 @@ Set the environment variable `AZURE_AUTH_LOCATION` with the full path for an aut
 
     bin\Debug\net452\ManageVirtualMachineScaleSet.exe
 
-## More information
+## More information ##
 
 [Azure Management Libraries for C#](https://github.com/Azure/azure-sdk-for-net/tree/Fluent)
 [Azure .Net Developer Center](https://azure.microsoft.com/en-us/develop/net/)
