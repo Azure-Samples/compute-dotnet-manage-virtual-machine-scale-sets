@@ -1,16 +1,23 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
-using Microsoft.Azure.Management.Compute.Fluent;
-using Microsoft.Azure.Management.Compute.Fluent.Models;
-using Microsoft.Azure.Management.Fluent;
-using Microsoft.Azure.Management.Network.Fluent.Models;
-using Microsoft.Azure.Management.ResourceManager.Fluent;
-using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
-using Microsoft.Azure.Management.Samples.Common;
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+
+using Azure.Core;
+using Azure.ResourceManager;
+using Azure.ResourceManager.Network.Models;
+using Azure.ResourceManager.Compute.Models;
+using Azure.ResourceManager.Compute;
+using Azure.ResourceManager.Network;
+using Azure.ResourceManager.Resources;
+using Azure.ResourceManager.Samples.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Azure;
+using Azure.Identity;
 
 namespace ManageVirtualMachineScaleSet
 {
@@ -29,16 +36,19 @@ namespace ManageVirtualMachineScaleSet
          *  - Restart a virtual machine scale set
          */
 
-        public static void RunSample(IAzure azure)
+        public static void RunSample(ArmClient client)
         {
-            var region = Region.USWestCentral;
-            var rgName = SdkContext.RandomResourceName("rgCOVS", 15);
-            var vnetName = SdkContext.RandomResourceName("vnet", 24);
-            var loadBalancerName1 = SdkContext.RandomResourceName("intlb" + "-", 18);
+            AzureLocation region = AzureLocation.EastUS;
+            var rgName = Utilities.CreateRandomName("rgCOVS");
+            var vmssNetworkConfigurationName = Utilities.CreateRandomName("networkConfiguration");
+            var ipConfigurationName = Utilities.CreateRandomName("ipconfigruation");
+            var vnetName = Utilities.CreateRandomName("vnet");
+            var loadBalancerName1 = Utilities.CreateRandomName("intlb" + "-");
             var publicIpName = "pip-" + loadBalancerName1;
             var frontendName = loadBalancerName1 + "-FE1";
             var backendPoolName1 = loadBalancerName1 + "-BAP1";
             var backendPoolName2 = loadBalancerName1 + "-BAP2";
+            var domainNameLabel = Utilities.CreateRandomName("domain");
 
             var httpProbe = "httpProbe";
             var httpsProbe = "httpsProbe";
@@ -46,14 +56,15 @@ namespace ManageVirtualMachineScaleSet
             var httpsLoadBalancingRule = "httpsRule";
             var natPool50XXto22 = "natPool50XXto22";
             var natPool60XXto23 = "natPool60XXto23";
-            var vmssName = SdkContext.RandomResourceName("vmss", 24);
+            var vmssName = Utilities.CreateRandomName("vmss");
 
             var userName = Utilities.CreateUsername();
             var sshKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCfSPC2K7LZcFKEO+/t3dzmQYtrJFZNxOsbVgOVKietqHyvmYGHEC0J2wPdAqQ/63g/hhAEFRoyehM+rbeDri4txB3YFfnOK58jqdkyXzupWqXzOrlKY4Wz9SKjjN765+dqUITjKRIaAip1Ri137szRg71WnrmdP3SphTRlCx1Bk2nXqWPsclbRDCiZeF8QOTi4JqbmJyK5+0UqhqYRduun8ylAwKKQJ1NJt85sYIHn9f1Rfr6Tq2zS0wZ7DHbZL+zB5rSlAr8QyUdg/GQD+cmSs6LvPJKL78d6hMGk84ARtFo4A79ovwX/Fj01znDQkU6nJildfkaolH2rWFG/qttD azjava@javalib.Com";
 
             var apacheInstallScript = "https://raw.githubusercontent.com/Azure/azure-libraries-for-net/master/Samples/Asset/install_apache.sh";
-            var installCommand = "bash install_apache.sh";
             var fileUris = new List<string>();
+            var lro = client.GetDefaultSubscription().GetResourceGroups().CreateOrUpdate(Azure.WaitUntil.Completed, rgName, new ResourceGroupData(AzureLocation.EastUS));
+            var resourceGroup = lro.Value;
             fileUris.Add(apacheInstallScript);
             try
             {
@@ -61,32 +72,46 @@ namespace ManageVirtualMachineScaleSet
                 // Create a virtual network with a frontend subnet
                 Utilities.Log("Creating virtual network with a frontend subnet ...");
 
-                var network = azure.Networks.Define(vnetName)
-                        .WithRegion(region)
-                        .WithNewResourceGroup(rgName)
-                        .WithAddressSpace("172.16.0.0/16")
-                        .DefineSubnet("Front-end")
-                        .WithAddressPrefix("172.16.1.0/24")
-                        .Attach()
-                        .Create();
-
+                var networkCollection = resourceGroup.GetVirtualNetworks();
+                var networkData = new VirtualNetworkData()
+                {
+                    Location = region,
+                    AddressPrefixes =
+                    {
+                        "172.16.1.0/24"
+                    },
+                    Subnets =
+                    {
+                        new SubnetData()
+                        {
+                            Name = "Front-end",
+                        }
+                    },
+                };
+                var networkResource = networkCollection.CreateOrUpdate(Azure.WaitUntil.Completed, vnetName, networkData).Value;
                 Utilities.Log("Created a virtual network");
                 // Print the virtual network details
-                Utilities.PrintVirtualNetwork(network);
+                Utilities.PrintVirtualNetwork(networkResource);
 
                 //=============================================================
                 // Create a public IP address
                 Utilities.Log("Creating a public IP address...");
 
-                var publicIPAddress = azure.PublicIPAddresses.Define(publicIpName)
-                        .WithRegion(region)
-                        .WithExistingResourceGroup(rgName)
-                        .WithLeafDomainLabel(publicIpName)
-                        .Create();
-
+                var publicIpAddressCollection = resourceGroup.GetPublicIPAddresses();
+                var publicIPAddressData = new PublicIPAddressData()
+                {
+                    Location = region,
+                    Tags = { { "key", "value" } },
+                    PublicIPAllocationMethod = NetworkIPAllocationMethod.Dynamic,
+                    DnsSettings = new PublicIPAddressDnsSettings()
+                    {
+                        DomainNameLabel = domainNameLabel
+                    }
+                };
+                var publicIpAddress = publicIpAddressCollection.CreateOrUpdate(Azure.WaitUntil.Completed, publicIpName, publicIPAddressData).Value;
                 Utilities.Log("Created a public IP address");
                 // Print the virtual network details
-                Utilities.PrintIPAddress(publicIPAddress);
+                Utilities.PrintIPAddress(publicIpAddress);
 
                 //=============================================================
                 // Create an Internet facing load balancer with
@@ -113,58 +138,82 @@ namespace ManageVirtualMachineScaleSet
                         + "  balancer to a port for a specific virtual machineinthe backend address pool\n"
                         + "  - this provides direct VM connectivity for SSH to port 22 and TELNET to port 23");
 
-                var loadBalancer1 = azure.LoadBalancers.Define(loadBalancerName1)
-                        .WithRegion(region)
-                        .WithExistingResourceGroup(rgName)
-                        // Add two rules that uses above backend and probe
-                        .DefineLoadBalancingRule(httpLoadBalancingRule)
-                            .WithProtocol(TransportProtocol.Tcp)
-                            .FromFrontend(frontendName)
-                            .FromFrontendPort(80)
-                            .ToBackend(backendPoolName1)
-                            .WithProbe(httpProbe)
-                            .Attach()
-                        .DefineLoadBalancingRule(httpsLoadBalancingRule)
-                            .WithProtocol(TransportProtocol.Tcp)
-                            .FromFrontend(frontendName)
-                            .FromFrontendPort(443)
-                            .ToBackend(backendPoolName2)
-                            .WithProbe(httpsProbe)
-                            .Attach()
-
-                        // Add nat pools to enable direct VM connectivity for
-                        //  SSH to port 22 and TELNET to port 23
-                        .DefineInboundNatPool(natPool50XXto22)
-                            .WithProtocol(TransportProtocol.Tcp)
-                            .FromFrontend(frontendName)
-                            .FromFrontendPortRange(5000, 5099)
-                            .ToBackendPort(22)
-                            .Attach()
-                        .DefineInboundNatPool(natPool60XXto23)
-                            .WithProtocol(TransportProtocol.Tcp)
-                            .FromFrontend(frontendName)
-                            .FromFrontendPortRange(6000, 6099)
-                            .ToBackendPort(23)
-                            .Attach()
-                        // Explicitly define the frontend
-                        .DefinePublicFrontend(frontendName)
-                            .WithExistingPublicIPAddress(publicIPAddress)
-                            .Attach()
-                        // Add two probes one per rule
-                        .DefineHttpProbe(httpProbe)
-                            .WithRequestPath("/")
-                            .WithPort(80)
-                            .Attach()
-                        .DefineHttpProbe(httpsProbe)
-                            .WithRequestPath("/")
-                            .WithPort(443)
-                            .Attach()
-
-                        .Create();
+                var loadBalancerCollection = resourceGroup.GetLoadBalancers();
+                var loadBalancerData = new LoadBalancerData()
+                {
+                    Location = region,
+                    LoadBalancingRules =
+                    {
+                        new LoadBalancingRuleData()
+                        {
+                            Name = httpLoadBalancingRule,
+                            Protocol = LoadBalancingTransportProtocol.Tcp,
+                            FrontendPort = 80,
+                            ProbeId = new ResourceIdentifier(httpProbe),
+                            BackendAddressPools =
+                            {
+                                new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                {
+                                    Id = new ResourceIdentifier(backendPoolName1)
+                                }
+                            }
+                        },
+                        new LoadBalancingRuleData()
+                        {
+                            Name= httpsLoadBalancingRule,
+                            Protocol= LoadBalancingTransportProtocol.Tcp,
+                            BackendPort = 443,
+                            ProbeId = new ResourceIdentifier(httpsProbe),
+                            BackendAddressPools =
+                            {
+                                new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                {
+                                    Id = new ResourceIdentifier(backendPoolName2)
+                                }
+                            }
+                        }
+                    },
+                    // Add nat pools to enable direct VM connectivity for
+                    //  SSH to port 22 and TELNET to port 23
+                    InboundNatRules =
+                    {
+                        new InboundNatRuleData()
+                        {
+                            Name = natPool50XXto22,
+                            Protocol= LoadBalancingTransportProtocol.Tcp,
+                            BackendPort = 22,
+                            FrontendPortRangeStart = 5000,
+                            FrontendPortRangeEnd = 5099,
+                        },
+                        new InboundNatRuleData()
+                        {
+                            Name = natPool60XXto23,
+                            Protocol= LoadBalancingTransportProtocol.Tcp,
+                            BackendPort = 23,
+                            FrontendPortRangeStart = 6000,
+                            FrontendPortRangeEnd = 6099,
+                        }
+                    },
+                    // Add two probes one per rule
+                    Probes =
+                    {
+                        new ProbeData()
+                        {
+                            RequestPath = "/",
+                            Port = 80,
+                        },
+                        new ProbeData()
+                        {
+                            RequestPath = "/",
+                            Port = 443,
+                        }
+                    }
+                };
+                var loadBalancer = loadBalancerCollection.CreateOrUpdate(Azure.WaitUntil.Completed, loadBalancerName1, loadBalancerData).Value;
 
                 // Print load balancer details
                 Utilities.Log("Created a load balancer");
-                Utilities.PrintLoadBalancer(loadBalancer1);
+                Utilities.PrintLoadBalancer(loadBalancer);
 
                 //=============================================================
                 // Create a virtual machine scale set with three virtual machines
@@ -175,38 +224,126 @@ namespace ManageVirtualMachineScaleSet
 
                 var t1 = new DateTime();
 
-                var virtualMachineScaleSet = azure.VirtualMachineScaleSets.Define(vmssName)
-                        .WithRegion(region)
-                        .WithExistingResourceGroup(rgName)
-                        .WithSku(VirtualMachineScaleSetSkuTypes.StandardD3v2)
-                        .WithExistingPrimaryNetworkSubnet(network, "Front-end")
-                        .WithExistingPrimaryInternetFacingLoadBalancer(loadBalancer1)
-                        .WithPrimaryInternetFacingLoadBalancerBackends(backendPoolName1, backendPoolName2)
-                        .WithPrimaryInternetFacingLoadBalancerInboundNatPools(natPool50XXto22, natPool60XXto23)
-                        .WithoutPrimaryInternalLoadBalancer()
-                        .WithPopularLinuxImage(KnownLinuxVirtualMachineImage.UbuntuServer16_04_Lts)
-                        .WithRootUsername(userName)
-                        .WithSsh(sshKey)
-                        .WithNewDataDisk(100)
-                        .WithNewDataDisk(100, 1, CachingTypes.ReadWrite)
-                        .WithNewDataDisk(100, 2, CachingTypes.ReadWrite, StorageAccountTypes.StandardLRS)
-                        .WithCapacity(3)
-                        // Use a VM extension to install Apache Web servers
-                        .DefineNewExtension("CustomScriptForLinux")
-                            .WithPublisher("Microsoft.OSTCExtensions")
-                            .WithType("CustomScriptForLinux")
-                            .WithVersion("1.4")
-                            .WithMinorVersionAutoUpgrade()
-                            .WithPublicSetting("fileUris", fileUris)
-                            .WithPublicSetting("commandToExecute", installCommand)
-                            .Attach()
-                        .Create();
+                var vmScaleSetVMCollection = resourceGroup.GetVirtualMachineScaleSets();
+                var scaleSetData = new VirtualMachineScaleSetData(region)
+                {
+                    Sku = new ComputeSku()
+                    {
+                        Name = "StandardD3v2",
+                        Capacity = 3,
+                        Tier = "Standard"
+                    },
+                    VirtualMachineProfile = new VirtualMachineScaleSetVmProfile()
+                    {
+                        OSProfile = new VirtualMachineScaleSetOSProfile()
+                        {
+                            LinuxConfiguration = new LinuxConfiguration()
+                            {
+                                SshPublicKeys =
+                                {
+                                    new SshPublicKeyConfiguration()
+                                    {
+                                        KeyData = sshKey,
+                                        Path = $"/home/{userName}/.ssh/authorized_keys"
+                                    }
+                                }
+                            }
+                        },
+                        StorageProfile = new VirtualMachineScaleSetStorageProfile()
+                        {
+                            DataDisks =
+                            {
+                                new VirtualMachineScaleSetDataDisk(1, DiskCreateOptionType.FromImage)
+                                {
+                                    DiskSizeGB = 100,
+                                    Caching = CachingType.ReadWrite
+                                },
+                                new VirtualMachineScaleSetDataDisk(2, DiskCreateOptionType.FromImage)
+                                {
+                                    DiskSizeGB = 100,
+                                    Caching = CachingType.ReadWrite
+                                },
+                                new VirtualMachineScaleSetDataDisk(3, DiskCreateOptionType.FromImage)
+                                {
+                                    DiskSizeGB = 100,
+                                },
+                            },
+                            ImageReference = new ImageReference()
+                            {
+                                Publisher = "Canonical",
+                                Offer = "UbuntuServer",
+                                Sku = "16.04-LTS",
+                                Version = "latest"
+                            }
+                        },
+                        NetworkProfile = new VirtualMachineScaleSetNetworkProfile()
+                        {
+                            NetworkInterfaceConfigurations =
+                           {
+                               new VirtualMachineScaleSetNetworkConfiguration(vmssNetworkConfigurationName)
+                               {
+                                   IPConfigurations =
+                                   {
+                                       new VirtualMachineScaleSetIPConfiguration(ipConfigurationName)
+                                       {
+                                           LoadBalancerInboundNatPools =
+                                           {
+                                               new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                               {
+                                                   Id = new ResourceIdentifier(natPool50XXto22)
+                                               },
+                                               new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                               {
+                                                   Id = new ResourceIdentifier(natPool60XXto23)
+                                               }
+                                           },
+                                           ApplicationGatewayBackendAddressPools =
+                                           {
+                                               new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                               {
+                                                   Id = new ResourceIdentifier(backendPoolName1)
+                                               },
+                                               new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                               {
+                                                   Id = new ResourceIdentifier(backendPoolName2)
+                                               },
+                                           },
+                                           LoadBalancerBackendAddressPools =
+                                           {
+                                               new Azure.ResourceManager.Resources.Models.WritableSubResource()
+                                               {
+                                                   Id = new ResourceIdentifier(loadBalancer.Data.Name)
+                                               }
+                                           },
+                                           SubnetId = networkResource.Id,
+                                           Primary = true,
+                                       }
+                                   }
+                               }
+                           }
+                        },
+                        ExtensionProfile = new VirtualMachineScaleSetExtensionProfile()
+                        {
+                            Extensions =
+                            {
+                                new VirtualMachineScaleSetExtensionData()
+                                {
+                                    Publisher = "Microsoft.OSTCExtensions",
+                                    ExtensionType = "CustomScriptForLinux",
+                                    TypeHandlerVersion = "1.4",
+                                    Settings = new BinaryData("{\"commandToExecute\":\"bash install_apache.sh\"}")
+                                }
+                            }
+                        }
+                    },
 
+                };
                 var t2 = new DateTime();
                 Utilities.Log("Created a virtual machine scale set with "
                         + "3 Linux VMs & Apache Web servers on them: (took "
                         + (t2 - t1).TotalSeconds + " seconds) ");
                 Utilities.Log();
+                var scaleSet = vmScaleSetVMCollection.CreateOrUpdate(Azure.WaitUntil.Completed, vmssName, scaleSetData).Value;
 
                 // Print virtual machine scale set details
                 // Utilities.Print(virtualMachineScaleSet);
@@ -215,33 +352,34 @@ namespace ManageVirtualMachineScaleSet
                 // List virtual machine scale set network interfaces
 
                 Utilities.Log("Listing scale set network interfaces ...");
-                var vmssNics = virtualMachineScaleSet.ListNetworkInterfaces();
+                var vmssNics = scaleSet.Data.VirtualMachineProfile.NetworkProfile.NetworkInterfaceConfigurations;
                 foreach (var vmssNic in vmssNics)
                 {
-                    Utilities.Log(vmssNic.Id);
+                    Utilities.Log(vmssNic.Name);
                 }
 
                 //=============================================================
                 // List virtual machine scale set instance network interfaces and SSH connection string
 
                 Utilities.Log("Listing scale set virtual machine instance network interfaces and SSH connection string...");
-                foreach (var instance in virtualMachineScaleSet.VirtualMachines.List())
+                foreach (var instance in vmScaleSetVMCollection.GetAll())
                 {
-                    Utilities.Log("Scale set virtual machine instance #" + instance.InstanceId);
+                    Utilities.Log("Scale set virtual machine instance #" + instance.Id);
                     Utilities.Log(instance.Id);
-                    var networkInterfaces = instance.ListNetworkInterfaces();
+                    var networkInterfaces = instance.Data.VirtualMachineProfile.NetworkProfile.NetworkInterfaceConfigurations;
                     // Pick the first NIC
                     var networkInterface = networkInterfaces.ElementAt(0);
-                    foreach (var ipConfig in networkInterface.IPConfigurations.Values)
+                    foreach (var ipConfig in networkInterface.IPConfigurations)
                     {
-                        if (ipConfig.IsPrimary)
+                        if (ipConfig.Primary == true)
                         {
-                            var natRules = ipConfig.ListAssociatedLoadBalancerInboundNatRules();
+                            var loadbalancer = resourceGroup.GetLoadBalancer(ipConfig.ApplicationGatewayBackendAddressPools.ElementAt(0).Id);
+                            var natRules = loadBalancer.Data.InboundNatRules;
                             foreach (var natRule in natRules)
                             {
                                 if (natRule.BackendPort == 22)
                                 {
-                                    Utilities.Log("SSH connection string: " + userName + "@" + publicIPAddress.Fqdn + ":" + natRule.FrontendPort);
+                                    Utilities.Log("SSH connection string: " + userName + "@" + publicIpAddress.Data.DnsSettings.ReverseFqdn + ":" + natRule.FrontendPort);
                                     break;
                                 }
                             }
@@ -254,31 +392,45 @@ namespace ManageVirtualMachineScaleSet
                 // Stop the virtual machine scale set
 
                 Utilities.Log("Stopping virtual machine scale set ...");
-                virtualMachineScaleSet.PowerOff();
+                scaleSet.PowerOff(Azure.WaitUntil.Completed);
                 Utilities.Log("Stopped virtual machine scale set");
 
                 //=============================================================
                 // Deallocate the virtual machine scale set
 
                 Utilities.Log("De-allocating virtual machine scale set ...");
-                virtualMachineScaleSet.Deallocate();
+                scaleSet.Deallocate(WaitUntil.Completed);
                 Utilities.Log("De-allocated virtual machine scale set");
 
                 //=============================================================
                 // Update the virtual machine scale set by removing and adding disk
 
                 Utilities.Log("Updating virtual machine scale set managed data disks...");
-                virtualMachineScaleSet.Update()
-                        .WithoutDataDisk(0)
-                        .WithoutDataDisk(200)
-                        .Apply();
+                scaleSet.Update(WaitUntil.Completed, new VirtualMachineScaleSetPatch()
+                {
+                    VirtualMachineProfile = new VirtualMachineScaleSetUpdateVmProfile()
+                    {
+                        StorageProfile = new VirtualMachineScaleSetUpdateStorageProfile()
+                        {
+                            DataDisks =
+                            {
+                                new VirtualMachineScaleSetDataDisk(0, DiskCreateOptionType.FromImage)
+                                {
+                                },
+                                new VirtualMachineScaleSetDataDisk(200, DiskCreateOptionType.FromImage)
+                                {
+                                }
+                            },
+                        }
+                    }
+                });
                 Utilities.Log("Updated virtual machine scale set");
 
                 //=============================================================
                 // Start the virtual machine scale set
 
                 Utilities.Log("Starting virtual machine scale set ...");
-                virtualMachineScaleSet.Start();
+                scaleSet.PowerOn(WaitUntil.Completed);
                 Utilities.Log("Started virtual machine scale set");
 
                 //=============================================================
@@ -288,9 +440,13 @@ namespace ManageVirtualMachineScaleSet
                 Utilities.Log("Updating virtual machine scale set "
                         + "- double the no. of virtual machines ...");
 
-                virtualMachineScaleSet.Update()
-                        .WithCapacity(6)
-                        .Apply();
+                scaleSet.Update(WaitUntil.Completed, new VirtualMachineScaleSetPatch()
+                {
+                    Sku = new ComputeSku()
+                    {
+                        Capacity = 6,
+                    },
+                });
 
                 Utilities.Log("Doubled the no. of virtual machinesin"
                         + "the virtual machine scale set");
@@ -299,7 +455,7 @@ namespace ManageVirtualMachineScaleSet
                 // re-start virtual machine scale set
 
                 Utilities.Log("re-starting virtual machine scale set ...");
-                virtualMachineScaleSet.Restart();
+                scaleSet.Restart(Azure.WaitUntil.Completed);
                 Utilities.Log("re-started virtual machine scale set");
             }
             finally
@@ -307,7 +463,7 @@ namespace ManageVirtualMachineScaleSet
                 try
                 {
                     Utilities.Log("Deleting Resource Group: " + rgName);
-                    azure.ResourceGroups.DeleteByName(rgName);
+                    resourceGroup.Delete(WaitUntil.Completed);
                     Utilities.Log("Deleted Resource Group: " + rgName);
                 }
                 catch (NullReferenceException)
@@ -327,18 +483,17 @@ namespace ManageVirtualMachineScaleSet
             {
                 //=============================================================
                 // Authenticate
-                var credentials = SdkContext.AzureCredentialsFactory.FromFile(Environment.GetEnvironmentVariable("AZURE_AUTH_LOCATION"));
-
-                var azure = Azure
-                    .Configure()
-                    .WithLogLevel(HttpLoggingDelegatingHandler.Level.Basic)
-                    .Authenticate(credentials)
-                    .WithDefaultSubscription();
+                var clientId = Environment.GetEnvironmentVariable("CLIENT_ID");
+                var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
+                var tenantId = Environment.GetEnvironmentVariable("TENANT_ID");
+                var subscription = Environment.GetEnvironmentVariable("SUBSCRIPTION_ID");
+                ClientSecretCredential credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+                ArmClient client = new ArmClient(credential, subscription);
 
                 // Print selected subscription
-                Utilities.Log("Selected subscription: " + azure.SubscriptionId);
+                Utilities.Log("Selected subscription: " + client.GetSubscriptions().Id);
 
-                RunSample(azure);
+                RunSample(client);
             }
             catch (Exception ex)
             {
